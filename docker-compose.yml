@@ -1,0 +1,12 @@
+services:
+  honeypot-api:
+    build: .
+    container_name: honeypot-api
+    ports:
+      - "8000:8000"
+    environment:
+      API_KEY: "${API_KEY}"
+      GUVI_CALLBACK_URL: "${GUVI_CALLBACK_URL}"
+      SESSION_TTL_SECONDS: "${SESSION_TTL_SECONDS:-1800}"
+      MAX_REPLY_CHARS: "${MAX_REPLY_CHARS:-280}"
+      PORT: "8000"
