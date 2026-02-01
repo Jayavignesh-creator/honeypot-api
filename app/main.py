@@ -11,9 +11,17 @@ from .config import MAX_REPLY_CHARS
 import time
 from fastapi import FastAPI, Request
 from starlette.middleware.base import BaseHTTPMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Agentic Honeypot API", version="1.0.0")
 store = InMemorySessionStore()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class LogAll(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
