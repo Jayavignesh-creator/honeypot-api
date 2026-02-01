@@ -7,23 +7,23 @@ Sender = Literal["scammer", "user"]
 Channel = Literal["SMS", "WhatsApp", "Email", "Chat"]
 
 class Message(BaseModel):
-    sender: Sender
+    sender: str = Field(min_length=1)  # accept anything, we normalize later
     text: str = Field(min_length=1, max_length=4000)
-    timestamp: str  # ISO-8601 string (platform guarantees)
+    timestamp: Optional[str] = None    # tolerate missing timestamp
 
 class Metadata(BaseModel):
-    channel: Optional[Channel] = None
+    channel: Optional[str] = None      # tolerate unknown channel values
     language: Optional[str] = None
     locale: Optional[str] = None
 
 class IncomingEvent(BaseModel):
     sessionId: str = Field(min_length=3, max_length=200)
     message: Message
-    conversationHistory: List[Message] = Field(default_factory=list)
+    conversationHistory: Optional[List[Message]] = None  # allow null/missing
     metadata: Optional[Metadata] = None
 
 class AgentResponse(BaseModel):
-    status: Literal["success", "error"] = "success"
+    status: str = "success"
     reply: str
 
 # Final callback payload schema (as per problem statement)

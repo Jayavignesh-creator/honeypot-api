@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import FastAPI, BackgroundTasks, Depends, Request
+from fastapi import FastAPI, BackgroundTasks, Depends
 from fastapi.responses import JSONResponse
 
 from .models import IncomingEvent, AgentResponse, FinalCallbackPayload
@@ -18,11 +18,10 @@ def health():
 
 @app.post("/v1/message", response_model=AgentResponse)
 async def handle_message(
-    event: Request,
+    event: IncomingEvent,
     background_tasks: BackgroundTasks,
     _: None = Depends(api_key_auth),
 ):
-    event = await event.json()
     print("Incoming Event", event)
     st = store.get_or_create(event.sessionId)
 
