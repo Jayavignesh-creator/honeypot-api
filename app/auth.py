@@ -10,6 +10,7 @@ def api_key_auth(x_api_key: str | None = Header(default=None, alias="x-api-key")
     - Reads header: x-api-key
     - Uses constant-time compare to prevent timing attacks.
     """
+    print("Header",x_api_key)
     if not x_api_key:
         raise HTTPException(status_code=401, detail="Missing API key")
 
