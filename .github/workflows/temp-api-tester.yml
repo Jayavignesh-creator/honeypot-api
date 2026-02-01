@@ -1,0 +1,22 @@
+name: Probe Honeypot Endpoint
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Curl health
+        run: |
+          set -x
+          curl -i --max-time 15 "https://honeypot-api.gentledune-f4353c70.polandcentral.azurecontainerapps.io/health" || true
+
+      - name: Curl v1/message (POST)
+        run: |
+          set -x
+          curl -i --max-time 15 \
+            -X POST "https://honeypot-api.gentledune-f4353c70.polandcentral.azurecontainerapps.io/v1/message" \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: dev-secret-key" \
+            -d '{"sessionId":"probe-123","message":{"sender":"scammer","text":"test","timestamp":"2026-01-21T10:15:30Z"},"conversationHistory":[]}' || true
