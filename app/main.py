@@ -8,9 +8,35 @@ from .session_store import InMemorySessionStore
 from .callback import send_final_callback
 from .auth import api_key_auth
 from .config import MAX_REPLY_CHARS
+import time
+from fastapi import FastAPI, Request
+from starlette.middleware.base import BaseHTTPMiddleware
 
 app = FastAPI(title="Agentic Honeypot API", version="1.0.0")
 store = InMemorySessionStore()
+
+class LogAll(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        start = time.time()
+        body = await request.body()
+        print("==== INCOMING REQUEST ====")
+        print("METHOD:", request.method)
+        print("PATH:", request.url.path)
+        print("QUERY:", request.url.query)
+        print("HEADERS:", dict(request.headers))
+        print("BODY_LEN:", len(body))
+        # show only first 2000 bytes to avoid huge spam
+        print("BODY_SNIP:", body[:2000])
+        print("==========================")
+
+        resp = await call_next(request)
+        ms = int((time.time() - start) * 1000)
+        print("==== RESPONSE ====")
+        print("STATUS:", resp.status_code, "TIME_MS:", ms)
+        print("==================")
+        return resp
+
+app.add_middleware(LogAll)
 
 @app.get("/health")
 def health():
