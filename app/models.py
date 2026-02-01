@@ -1,32 +1,31 @@
 from __future__ import annotations
 
-from typing import Literal, List, Optional
+from typing import Literal, List, Optional, Any
 from pydantic import BaseModel, Field
 
 Sender = Literal["scammer", "user"]
 Channel = Literal["SMS", "WhatsApp", "Email", "Chat"]
 
 class Message(BaseModel):
-    sender: str = Field(min_length=1)  # accept anything, we normalize later
+    sender: str = Field(min_length=1)
     text: str = Field(min_length=1, max_length=4000)
-    timestamp: Optional[str] = None    # tolerate missing timestamp
+    timestamp: Optional[Any] = None
 
 class Metadata(BaseModel):
-    channel: Optional[str] = None      # tolerate unknown channel values
+    channel: Optional[str] = None
     language: Optional[str] = None
     locale: Optional[str] = None
 
 class IncomingEvent(BaseModel):
     sessionId: str = Field(min_length=3, max_length=200)
     message: Message
-    conversationHistory: Optional[List[Message]] = None  # allow null/missing
+    conversationHistory: Optional[List[Message]] = None
     metadata: Optional[Metadata] = None
 
 class AgentResponse(BaseModel):
     status: str = "success"
     reply: str
 
-# Final callback payload schema (as per problem statement)
 class ExtractedIntelligence(BaseModel):
     bankAccounts: List[str] = Field(default_factory=list)
     upiIds: List[str] = Field(default_factory=list)
