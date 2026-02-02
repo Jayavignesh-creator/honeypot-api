@@ -7,3 +7,4 @@ GUVI_CALLBACK_URL = os.getenv(
 )
 SESSION_TTL_SECONDS = int(os.getenv("SESSION_TTL_SECONDS", "1800"))
 MAX_REPLY_CHARS = int(os.getenv("MAX_REPLY_CHARS", "280"))
+MODEL_PATH = os.getenv("MODEL_PATH", "./models/bert_scam_detector.pth")

@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import Dict
 
 from .config import SESSION_TTL_SECONDS
-from .models import ExtractedIntelligence
+from .pydantic_models import ExtractedIntelligence
 
 
 @dataclass

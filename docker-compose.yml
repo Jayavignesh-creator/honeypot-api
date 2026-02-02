@@ -9,4 +9,5 @@ services:
       GUVI_CALLBACK_URL: "${GUVI_CALLBACK_URL}"
       SESSION_TTL_SECONDS: "${SESSION_TTL_SECONDS:-1800}"
       MAX_REPLY_CHARS: "${MAX_REPLY_CHARS:-280}"
+      MODEL_PATH: "/app/app/models/bert_scam_detector.pth"
       PORT: "8000"

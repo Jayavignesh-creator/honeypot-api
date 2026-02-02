@@ -3,17 +3,36 @@ from __future__ import annotations
 from fastapi import FastAPI, BackgroundTasks, Depends
 from fastapi.responses import JSONResponse
 
-from .models import IncomingEvent, AgentResponse, FinalCallbackPayload
+from .pydantic_models import IncomingEvent, AgentResponse, FinalCallbackPayload
 from .session_store import InMemorySessionStore
 from .callback import send_final_callback
 from .auth import api_key_auth
-from .config import MAX_REPLY_CHARS
+from .config import MAX_REPLY_CHARS, MODEL_PATH
 import time
 from fastapi import FastAPI, Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+from .first_scam_gate import FirstLayerScamDetector
 
-app = FastAPI(title="Agentic Honeypot API", version="1.0.0")
+models = {}
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global detector
+
+    print("Loading scam detection model...")
+    detector = FirstLayerScamDetector()
+
+    scam_model = detector.load_model(MODEL_PATH)
+    if not scam_model:
+        raise RuntimeError("Failed to load scam detection model")
+
+    models["scam_detector"] = detector
+    print("Model loaded")
+    yield
+
+app = FastAPI(title="Agentic Honeypot API", version="1.0.0", lifespan=lifespan)
 store = InMemorySessionStore()
 
 app.add_middleware(
@@ -67,8 +86,10 @@ async def handle_message(
     # Scam detection (stub for now)
     # -----------------------------
     text_lower = event.message.text.lower()
-    obvious = any(k in text_lower for k in ["upi", "verify", "account blocked", "otp", "suspend", "link"])
-    if event.message.sender == "scammer" and obvious:
+
+    detector_response = models["scam_detector"].predict_message(text_lower)
+    print(detector_response["prediction"])
+    if event.message.sender == "scammer" and detector_response["prediction"] == "scam":
         st.scam_detected = True
 
     # -----------------------------

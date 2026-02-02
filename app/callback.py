@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import httpx
 from .config import GUVI_CALLBACK_URL
-from .models import FinalCallbackPayload
+from .pydantic_models import FinalCallbackPayload
 
 
 async def send_final_callback(payload: FinalCallbackPayload) -> None:
