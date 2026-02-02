@@ -4,8 +4,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict
 
-from .config import SESSION_TTL_SECONDS
-from .pydantic_models import ExtractedIntelligence
+from app.config import SESSION_TTL_SECONDS
+from app.pydantic_models import ExtractedIntelligence
 
 
 @dataclass

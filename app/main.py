@@ -3,23 +3,36 @@ from __future__ import annotations
 from fastapi import FastAPI, BackgroundTasks, Depends
 from fastapi.responses import JSONResponse
 
-from .pydantic_models import IncomingEvent, AgentResponse, FinalCallbackPayload
-from .session_store import InMemorySessionStore
-from .callback import send_final_callback
-from .auth import api_key_auth
-from .config import MAX_REPLY_CHARS, MODEL_PATH
+from app.pydantic_models import IncomingEvent, AgentResponse, FinalCallbackPayload
+from app.session_store import InMemorySessionStore
+from app.callback import send_final_callback
+from app.auth import api_key_auth
+from app.config import MAX_REPLY_CHARS, MODEL_PATH
+from app.first_scam_gate import FirstLayerScamDetector
+
 import time
 from fastapi import FastAPI, Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from .first_scam_gate import FirstLayerScamDetector
+from pathlib import Path
+from urllib.request import urlopen
+import shutil
 
 models = {}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global detector
+    print("Downloading scam detection model...")
+
+    url = "https://huggingface.co/spaces/jacksonwambali/Bert/resolve/main/bert_scam_detector.pth"
+    out_path = Path(MODEL_PATH)
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with urlopen(url) as response, open(out_path, "wb") as out_file:
+        shutil.copyfileobj(response, out_file)
 
     print("Loading scam detection model...")
     detector = FirstLayerScamDetector()

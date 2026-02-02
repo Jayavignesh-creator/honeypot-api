@@ -1,7 +1,7 @@
 import secrets
 from fastapi import Header, HTTPException
 
-from .config import API_KEY
+from app.config import API_KEY
 
 
 def api_key_auth(x_api_key: str | None = Header(default=None, alias="x-api-key")) -> None:

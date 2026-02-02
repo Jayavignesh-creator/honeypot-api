@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import httpx
-from .config import GUVI_CALLBACK_URL
-from .pydantic_models import FinalCallbackPayload
+from app.config import GUVI_CALLBACK_URL
+from app.pydantic_models import FinalCallbackPayload
 
 
 async def send_final_callback(payload: FinalCallbackPayload) -> None:
