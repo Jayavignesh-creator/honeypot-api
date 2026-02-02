@@ -14,9 +14,7 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:$PATH"
 
 COPY requirements.txt .
-
 RUN uv pip install --system --no-cache-dir -r requirements.txt
-
 COPY app ./app
 
 EXPOSE 8000
