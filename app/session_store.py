@@ -25,6 +25,8 @@ class SessionState:
     extracted: ExtractedIntelligence = field(default_factory=ExtractedIntelligence)
     agent_notes: str = ""
 
+    state: str = "START"
+    summary: str = ""
 
 class InMemorySessionStore:
     """

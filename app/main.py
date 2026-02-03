@@ -9,6 +9,8 @@ from app.callback import send_final_callback
 from app.auth import api_key_auth
 from app.config import MAX_REPLY_CHARS, MODEL_PATH
 from app.first_scam_gate import FirstLayerScamDetector
+from app.agentic_persona import run_agentic_turn
+from app.tools_extract import merge_unique
 
 import time
 from fastapi import FastAPI, Request
@@ -106,12 +108,53 @@ async def handle_message(
         st.scam_detected = True
 
     # -----------------------------
-    # Agent reply (placeholder)
+    # Agent reply (agentic + tool calls)
     # -----------------------------
+
+    # Ensure these exist (backward compatible)
+    if not hasattr(st, "state") or not st.state:
+        st.state = "START"
+    if not hasattr(st, "summary") or st.summary is None:
+        st.summary = ""
+    if not hasattr(st, "extracted") or st.extracted is None:
+        st.extracted = {"upiIds": [], "urls": [], "phones": [], "accounts": []}
+
     if st.scam_detected:
-        reply = "Wait—why is it getting blocked? What exactly do I need to do?"
+        # Build a small tail from conversationHistory + latest scammer msg
+        # Your IncomingEvent.conversationHistory should have {sender, text, timestamp}
+        effective = [{"sender": h.sender, "text": h.text, "timestamp": h.timestamp} for h in event.conversationHistory]
+        effective.append({"sender": "scammer", "text": event.message.text, "timestamp": event.message.timestamp})
+        history_tail = effective[-16:]  # hard cap for cost + speed
+
+        # Simple state update heuristic (optional but useful)
+        txt = event.message.text.lower()
+        if st.state == "START":
+            st.state = "CONFUSED"
+        if "otp" in txt or "password" in txt or "verify" in txt:
+            st.state = "TRUST_BUILDING"
+        if "link" in txt or "install" in txt:
+            st.state = "INFO_EXTRACTION"
+        if st.extracted.upiIds or st.extracted.bankAccounts:
+            st.state = "STALLING"
+
+        # Run one agentic turn: model calls tools -> we execute -> get extracted intel + reply
+        reply, new_bits, dbg = run_agentic_turn(
+            latest_scammer_msg=event.message.text,
+            history_tail=history_tail,
+            session_state=st.state,
+            summary=st.summary,
+            extracted=st.extracted
+        )
+
+        # Merge extracted intel into session
+        st.extracted = merge_unique(st.extracted, new_bits)
+
         st.agent_turns += 1
-        st.agent_notes = "Used a cautious, confused tone to keep scammer engaged."
+        st.agent_notes = dbg
+
+        # Optional: keep summary minimal for now (we can improve later)
+        if not st.summary:
+            st.summary = "Scammer claims account issue and demands urgent action."
     else:
         reply = "Sorry, can you explain?"
         st.agent_turns += 1
@@ -121,7 +164,7 @@ async def handle_message(
     # -----------------------------
     # Stop condition + callback (basic skeleton)
     # -----------------------------
-    if st.scam_detected and (not st.final_callback_sent) and st.agent_turns >= 3:
+    if st.scam_detected and (not st.final_callback_sent) and st.agent_turns >= 10:
         total_messages = len(event.conversationHistory) + 1 + st.agent_turns  # best-effort
 
         payload = FinalCallbackPayload(
