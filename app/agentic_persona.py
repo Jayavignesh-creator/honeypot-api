@@ -82,7 +82,7 @@ def run_agentic_turn(latest_scammer_msg: str, history_tail: List[dict], session_
         tools=TOOLS,
         tool_choice="auto",
         max_output_tokens=LLM_MAX_OUTPUT_TOKENS,
-        store=False,
+        store=True,
     )
 
     print("OpenAI Model", OPENAI_MODEL)
@@ -117,7 +117,7 @@ def run_agentic_turn(latest_scammer_msg: str, history_tail: List[dict], session_
         input=input_list,
         tools=TOOLS,
         max_output_tokens=LLM_MAX_OUTPUT_TOKENS,
-        store=False,
+        store=True,
         instructions="Output ONLY the victim's next message. Do NOT include extracted data or JSON."
     )
 
