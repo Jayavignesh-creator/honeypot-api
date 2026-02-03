@@ -64,6 +64,17 @@ def build_prompt(state: str, summary: str, extracted: ExtractedIntelligence, his
         + "8) Do NOT include any extracted entities, tool results, JSON, lists, or explanations.\n"
     )
 
+
+def append_only_function_calls(input_list: List[dict], resp) -> None:
+    for item in resp.output:
+        if getattr(item, "type", None) == "function_call":
+            # Convert to plain dict, avoid reasoning items entirely
+            input_list.append({
+                "type": "function_call",
+                "name": item.name,
+                "arguments": item.arguments,
+                "call_id": item.call_id,
+            })
     
 
 
@@ -88,7 +99,7 @@ def run_agentic_turn(latest_scammer_msg: str, history_tail: List[dict], session_
     print("OpenAI Model", OPENAI_MODEL)
     print("LLM First output_text", resp1.output_text)
 
-    input_list += resp1.output
+    append_only_function_calls(input_list, resp1)
 
     new_bits = {"upiIds": [], "phishingLinks": [], "phoneNumbers": [], "bankAccounts": []}
     tool_calls = 0
