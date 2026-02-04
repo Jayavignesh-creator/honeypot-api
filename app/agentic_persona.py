@@ -64,7 +64,7 @@ def build_prompt(state: str, summary: str, extracted: ExtractedIntelligence, his
         + "3) Do not use any emojis or special characters.\n"
         + "4) Even though you should not share any sensitive information, make them think like you would and stall so that you extract information.\n"
         + "5) FOLLOW THIS STRICTLY: only call the tool extract_intelligence if the scammer message includes UPI IDs, bank accounts, phone numbers, or links.\n"
-        + "6) Allways provide a VICTIM response once any tool call is over pushing the scammer into giving you the other intelligence required.\n"
+        + "6) Allways provide a VICTIM response once any tool call is over pushing the scammer into giving you the other intelligence required.But DO NOT EVER REVEAL that you are stalling for information.\n"
         + "7) Stall the conversation until you extract all the necessary information.\n"
         + "8) FOLLOW THIS STRICTLY: call the tool evaluate_stop_condition if you cannot extract any more intelligence from the message"
         + "9) FOLLOW THIS STRICTLY: call the tool evaluate_stop_condition if the scammer sends the same message repeatedly, you can check that by looking into the recent conversation given above.\n"
