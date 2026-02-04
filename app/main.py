@@ -98,7 +98,7 @@ async def handle_message(
         return AgentResponse(status="success", reply="Okay, thanks.")
 
     print("Conversation History", event.conversationHistory)
-    st.language = event.metadata.get("language", "English")
+    st.language = event.metadata.language
 
     # -----------------------------
     # Scam detection (stub for now)
