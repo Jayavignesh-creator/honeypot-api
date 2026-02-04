@@ -98,6 +98,7 @@ async def handle_message(
         return AgentResponse(status="success", reply="Okay, thanks.")
 
     print("Conversation History", event.conversationHistory)
+    st.language = event.metadata.get("language", "English")
 
     # -----------------------------
     # Scam detection (stub for now)
@@ -150,7 +151,7 @@ async def handle_message(
             session_id=st.session_id,
             history_tail=history_tail,
             session_state=st.state,
-            summary=st.summary,
+            language=st.language,
             extracted=st.extracted,
             background_tasks=background_tasks
         )

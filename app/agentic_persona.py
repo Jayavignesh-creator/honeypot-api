@@ -15,7 +15,7 @@ import random
 
 client = OpenAI()
 
-def build_prompt(state: str, summary: str, extracted: ExtractedIntelligence, history_tail: List[dict]) -> str:
+def build_prompt(state: str, language: str, extracted: ExtractedIntelligence, history_tail: List[dict]) -> str:
     persona = (
         "You are a real person texting on a phone in India. "
         "You are anxious, slightly confused, not very technical. "
@@ -59,7 +59,7 @@ def build_prompt(state: str, summary: str, extracted: ExtractedIntelligence, his
         + "Recent conversation:\n"
         + transcript
         + "\n\nINSTRUCTIONS:\n"
-        + "1) Respond in English in a confused tone.\n"
+        + f"1) Respond in {language} in a confused tone.\n"
         + "2) Respond with the VICTIM message (1–2 short sentences).\n"
         + "3) Do not use any emojis or special characters.\n"
         + "4) Even though you should not share any sensitive information, make them think like you would and stall so that you extract information.\n"
@@ -117,12 +117,12 @@ def call_openai_with_retry(
             time.sleep(sleep_for)
     
 
-def run_agentic_turn(latest_scammer_msg: str, session_id: str, history_tail: List[dict], session_state: str, summary: str, extracted: dict, background_tasks: BackgroundTasks) -> Tuple[str, dict, str]:
+def run_agentic_turn(latest_scammer_msg: str, session_id: str, history_tail: List[dict], session_state: str, language: str, extracted: dict, background_tasks: BackgroundTasks) -> Tuple[str, dict, str]:
     """
     Returns: (reply_text, new_extracted_bits, debug_state)
     """
 
-    prompt = build_prompt(session_state, summary, extracted, history_tail)
+    prompt = build_prompt(session_state, language, extracted, history_tail)
 
     input_list: List[dict] = [{"role": "user", "content": prompt}]
 

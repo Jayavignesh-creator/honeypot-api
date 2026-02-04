@@ -29,6 +29,7 @@ class SessionState:
 
     state: str = "START"
     summary: str = ""
+    language: str = "English"
 
 class InMemorySessionStore:
     """
