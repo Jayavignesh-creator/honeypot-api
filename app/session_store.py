@@ -60,3 +60,5 @@ class InMemorySessionStore:
     def save(self, st: SessionState) -> None:
         st.updated_at = time.time()
         self._store[st.session_id] = st
+
+store = InMemorySessionStore()

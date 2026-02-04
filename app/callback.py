@@ -9,6 +9,7 @@ async def send_final_callback(payload: FinalCallbackPayload) -> None:
     """
     Best-effort callback. We keep it async so /v1/message stays fast.
     """
+    print("Final callback issued")
     async with httpx.AsyncClient(timeout=5.0) as client:
         for _ in range(3):
             try:

@@ -1,17 +1,19 @@
-from app.session_store import InMemorySessionStore
+from fastapi import BackgroundTasks
+from app.session_store import store
 from app.tools.summarize import summarize_behaviour, extract_suspicious_keywords
 from app.callback import send_final_callback
 from app.pydantic_models import FinalCallbackPayload
+import json
 
-store = InMemorySessionStore()
-
-def final_callback(session_id: str, reason: str):
+def final_callback(session_id: str, reason: str, background_tasks: BackgroundTasks):
     st = store.get_or_create(session_id)
     total_messages = len(st.conversationHistory) + 1  # best-effort
 
-    suspicious_keywords = extract_suspicious_keywords(st.conversationHistory)
+    print("Conversation history from callback tool", st.conversationHistory)
+
+    suspicious_keywords = extract_suspicious_keywords(json.dumps(st.conversationHistory))
     st.extracted.suspiciousKeywords = suspicious_keywords
-    scammer_behaviour = summarize_behaviour(st.conversationHistory) + "\n\n" + reason
+    scammer_behaviour = summarize_behaviour(json.dumps(st.conversationHistory)) + "\n\n" + reason
 
     print("Extracted keywords", suspicious_keywords)
     print("Scammer Behaviour", scammer_behaviour)
@@ -24,7 +26,7 @@ def final_callback(session_id: str, reason: str):
         agentNotes=scammer_behaviour
     )
 
-    send_final_callback(payload)
+    background_tasks.add_task(send_final_callback, payload)
 
     st.final_callback_sent = True
     st.status = "closed"

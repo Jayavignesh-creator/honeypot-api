@@ -1,9 +1,8 @@
 name: Build & Push to ACR
 
 on:
-  pull_request:
-    branches:
-      - master
+  workflow_dispatch:
+
 env:
   IMAGE_NAME: honeypot-api
   ACR_LOGIN_SERVER: aiopsjvacr.azurecr.io

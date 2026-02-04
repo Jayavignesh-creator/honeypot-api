@@ -4,8 +4,8 @@ from queue import Empty
 from fastapi import FastAPI, BackgroundTasks, Depends
 from fastapi.responses import JSONResponse
 
+from app.session_store import store
 from app.pydantic_models import IncomingEvent, AgentResponse
-from app.session_store import InMemorySessionStore
 from app.auth import api_key_auth
 from app.config import MAX_REPLY_CHARS, MODEL_PATH
 from app.first_scam_gate import FirstLayerScamDetector
@@ -49,7 +49,6 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="Agentic Honeypot API", version="1.0.0", lifespan=lifespan)
-store = InMemorySessionStore()
 
 app.add_middleware(
     CORSMiddleware,
@@ -88,6 +87,7 @@ def health():
 @app.post("/v1/message", response_model=AgentResponse)
 async def handle_message(
     event: IncomingEvent,
+    background_tasks: BackgroundTasks,
     _: None = Depends(api_key_auth),
 ):
     print("Incoming Event", event)
@@ -151,7 +151,8 @@ async def handle_message(
             history_tail=history_tail,
             session_state=st.state,
             summary=st.summary,
-            extracted=st.extracted
+            extracted=st.extracted,
+            background_tasks=background_tasks
         )
 
         # Merge extracted intel into session
@@ -169,8 +170,8 @@ async def handle_message(
 
     reply = reply[:MAX_REPLY_CHARS]
 
-    if st.agent_turns > 10:
-        final_callback(st.session_id, "Number of conversations exceeded set max limit")
+    if st.scam_detected and st.agent_turns > 10:
+        final_callback(st.session_id, "Number of conversations exceeded set max limit", background_tasks=background_tasks)
 
     store.save(st)
     return AgentResponse(status="success", reply=reply)

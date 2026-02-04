@@ -42,10 +42,10 @@ def build_prompt(state: str, summary: str, extracted: ExtractedIntelligence, his
     known_line = ", ".join(known) if known else "(none)"
 
     # history_tail items should have role + text; fall back safely
-    n_hostory_tail = history_tail[-2:]
+    n_history_tail = history_tail[-2:]
     n_agentic_replies = len(history_tail)
     transcript_lines = []
-    for m in n_hostory_tail:
+    for m in n_history_tail:
         who = (m.get("role") or m.get("sender") or "unknown").upper()
         transcript_lines.append(f"{who}: {m.get('text','')}")
     transcript = "\n".join(transcript_lines) if transcript_lines else "(none)"
@@ -117,7 +117,7 @@ def call_openai_with_retry(
             time.sleep(sleep_for)
     
 
-def run_agentic_turn(latest_scammer_msg: str, session_id: str, history_tail: List[dict], session_state: str, summary: str, extracted: dict) -> Tuple[str, dict, str]:
+def run_agentic_turn(latest_scammer_msg: str, session_id: str, history_tail: List[dict], session_state: str, summary: str, extracted: dict, background_tasks: BackgroundTasks) -> Tuple[str, dict, str]:
     """
     Returns: (reply_text, new_extracted_bits, debug_state)
     """
@@ -169,7 +169,7 @@ def run_agentic_turn(latest_scammer_msg: str, session_id: str, history_tail: Lis
             print("On final callback", item.arguments)
             args = json.loads(item.arguments)
             if args.get("should_stop"):
-                final_callback(session_id=session_id, reason=args.get("reason"))
+                final_callback(session_id=session_id, reason=args.get("reason"), background_tasks=background_tasks)
                 reply = "okay I will do it now"
                 debug = f"prompt_len={len(prompt)} tool_calls={tool_calls}"
                 empty_obj = {"upiIds": [], "phishingLinks": [], "phoneNumbers": [], "bankAccounts": []}
