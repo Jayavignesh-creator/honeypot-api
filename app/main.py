@@ -1,16 +1,17 @@
 from __future__ import annotations
+from queue import Empty
 
 from fastapi import FastAPI, BackgroundTasks, Depends
 from fastapi.responses import JSONResponse
 
-from app.pydantic_models import IncomingEvent, AgentResponse, FinalCallbackPayload
-from app.session_store import InMemorySessionStore
-from app.callback import send_final_callback
+from app.session_store import store
+from app.pydantic_models import IncomingEvent, AgentResponse
 from app.auth import api_key_auth
 from app.config import MAX_REPLY_CHARS, MODEL_PATH
 from app.first_scam_gate import FirstLayerScamDetector
 from app.agentic_persona import run_agentic_turn
-from app.tools_extract import merge_unique
+from app.tools.extract_tool import merge_unique
+from app.tools.callback_tool import final_callback
 
 import time
 from fastapi import FastAPI, Request
@@ -48,7 +49,6 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="Agentic Honeypot API", version="1.0.0", lifespan=lifespan)
-store = InMemorySessionStore()
 
 app.add_middleware(
     CORSMiddleware,
@@ -97,15 +97,17 @@ async def handle_message(
     if st.status == "closed":
         return AgentResponse(status="success", reply="Okay, thanks.")
 
+    print("Conversation History", event.conversationHistory)
+
     # -----------------------------
     # Scam detection (stub for now)
     # -----------------------------
-    text_lower = event.message.text.lower()
-
-    detector_response = models["scam_detector"].predict_message(text_lower)
-    print(detector_response["prediction"])
-    if event.message.sender == "scammer" and detector_response["prediction"] == "scam":
-        st.scam_detected = True
+    if not event.conversationHistory:
+        text_lower = event.message.text.lower()
+        detector_response = models["scam_detector"].predict_message(text_lower)
+        print("Scam Detection", detector_response["prediction"])
+        if event.message.sender == "scammer" and detector_response["prediction"] == "scam":
+            st.scam_detected = True
 
     # -----------------------------
     # Agent reply (agentic + tool calls)
@@ -122,9 +124,14 @@ async def handle_message(
     if st.scam_detected:
         # Build a small tail from conversationHistory + latest scammer msg
         # Your IncomingEvent.conversationHistory should have {sender, text, timestamp}
-        effective = [{"sender": h.sender, "text": h.text, "timestamp": h.timestamp} for h in event.conversationHistory]
+        effective = [
+            {"sender": h.sender, "text": h.text, "timestamp": h.timestamp}
+            for h in event.conversationHistory
+            if h.sender == "scammer"
+        ]
         effective.append({"sender": "scammer", "text": event.message.text, "timestamp": event.message.timestamp})
-        history_tail = effective[-16:]  # hard cap for cost + speed
+        st.conversationHistory = effective
+        history_tail = effective  # hard cap for cost + speed
 
         # Simple state update heuristic (optional but useful)
         txt = event.message.text.lower()
@@ -140,10 +147,12 @@ async def handle_message(
         # Run one agentic turn: model calls tools -> we execute -> get extracted intel + reply
         reply, new_bits, dbg = run_agentic_turn(
             latest_scammer_msg=event.message.text,
+            session_id=st.session_id,
             history_tail=history_tail,
             session_state=st.state,
             summary=st.summary,
-            extracted=st.extracted
+            extracted=st.extracted,
+            background_tasks=background_tasks
         )
 
         # Merge extracted intel into session
@@ -161,24 +170,8 @@ async def handle_message(
 
     reply = reply[:MAX_REPLY_CHARS]
 
-    # -----------------------------
-    # Stop condition + callback (basic skeleton)
-    # -----------------------------
-    if st.scam_detected and (not st.final_callback_sent) and st.agent_turns >= 10:
-        total_messages = len(event.conversationHistory) + 1 + st.agent_turns  # best-effort
-
-        payload = FinalCallbackPayload(
-            sessionId=event.sessionId,
-            scamDetected=True,
-            totalMessagesExchanged=total_messages,
-            extractedIntelligence=st.extracted,  # empty for now; we’ll fill later
-            agentNotes=st.agent_notes or "Engaged scammer to elicit details."
-        )
-
-        background_tasks.add_task(send_final_callback, payload)
-
-        st.final_callback_sent = True
-        st.status = "closed"
+    if st.scam_detected and st.agent_turns > 10:
+        final_callback(st.session_id, "Number of conversations exceeded set max limit", background_tasks=background_tasks)
 
     store.save(st)
     return AgentResponse(status="success", reply=reply)
