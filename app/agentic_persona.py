@@ -2,12 +2,16 @@ from __future__ import annotations
 
 from typing import List, Tuple
 from openai import OpenAI
+import openai
 import json
+import time
 
 from app.config import OPENAI_MODEL, LLM_MAX_OUTPUT_TOKENS
 from app.openai_tools import TOOLS
-from app.tools_extract import extract_entities
+from app.tools.extract_tool import extract_entities
+from app.tools.callback_tool import final_callback
 from app.pydantic_models import ExtractedIntelligence
+import random
 
 client = OpenAI()
 
@@ -38,8 +42,10 @@ def build_prompt(state: str, summary: str, extracted: ExtractedIntelligence, his
     known_line = ", ".join(known) if known else "(none)"
 
     # history_tail items should have role + text; fall back safely
+    n_hostory_tail = history_tail[-2:]
+    n_agentic_replies = len(history_tail)
     transcript_lines = []
-    for m in history_tail:
+    for m in n_hostory_tail:
         who = (m.get("role") or m.get("sender") or "unknown").upper()
         transcript_lines.append(f"{who}: {m.get('text','')}")
     transcript = "\n".join(transcript_lines) if transcript_lines else "(none)"
@@ -48,20 +54,21 @@ def build_prompt(state: str, summary: str, extracted: ExtractedIntelligence, his
     return (
         persona
         + f"\nCurrent objective: {goal}\n"
-        + f"Summary so far: {summary if summary else '(none)'}\n"
         + f"Known extracted intel: {known_line}\n"
+        + f"Number of replies so far: {n_agentic_replies}\n"
         + "Recent conversation:\n"
         + transcript
         + "\n\nINSTRUCTIONS:\n"
-        # + "1) First, call the tool extract_intelligence on the latest SCAMMER message text.\n"
         + "1) Respond in English in a confused tone.\n"
         + "2) Respond with the VICTIM message (1–2 short sentences).\n"
         + "3) Do not use any emojis or special characters.\n"
         + "4) Even though you should not share any sensitive information, make them think like you would and stall so that you extract information.\n"
         + "5) FOLLOW THIS STRICTLY: only call the tool extract_intelligence if the scammer message includes UPI IDs, bank accounts, phone numbers, or links.\n"
-        + "6) Stall the conversation until you extract all the necessary information.\n"
-        + "7) After tool results are provided, output ONLY the victim's next message.\n"
-        + "8) Do NOT include any extracted entities, tool results, JSON, lists, or explanations.\n"
+        + "6) Allways provide a VICTIM response once any tool call is over pushing the scammer into giving you the other intelligence required.\n"
+        + "7) Stall the conversation until you extract all the necessary information.\n"
+        + "8) FOLLOW THIS STRICTLY: call the tool evaluate_stop_condition if you cannot extract any more intelligence from the message"
+        + "9) FOLLOW THIS STRICTLY: call the tool evaluate_stop_condition if the scammer sends the same message repeatedly, you can check that by looking into the recent conversation given above.\n"
+        + "10) FOLLOW THIS STRICTLY: do not call the tool evaluate_stop_condition for the first 5 messages, you can check the number of messages by looking into Number of replies so far given above.\n"
     )
 
 
@@ -75,10 +82,42 @@ def append_only_function_calls(input_list: List[dict], resp) -> None:
                 "arguments": item.arguments,
                 "call_id": item.call_id,
             })
+
+
+def call_openai_with_retry(
+    fn,
+    retries: int = 3,
+    base_delay: float = 1.5,
+    max_delay: float = 10.0,
+):
+    """
+    Exponential backoff retry wrapper for OpenAI calls.
+
+    delay = min(base_delay * (2 ** attempt), max_delay)
+    Adds small jitter to avoid thundering herd.
+    """
+    for attempt in range(retries):
+        try:
+            return fn()
+        except openai.InternalServerError as e:
+            if attempt == retries - 1:
+                raise
+
+            delay = min(base_delay * (2 ** attempt), max_delay)
+            # optional jitter (±20%)
+            jitter = delay * 0.2 * random.random()
+
+            sleep_for = delay + jitter
+
+            print(
+                f"⚠️ OpenAI 500 error, retrying "
+                f"({attempt + 1}/{retries}) in {sleep_for:.2f}s..."
+            )
+
+            time.sleep(sleep_for)
     
 
-
-def run_agentic_turn(latest_scammer_msg: str, history_tail: List[dict], session_state: str, summary: str, extracted: dict) -> Tuple[str, dict, str]:
+def run_agentic_turn(latest_scammer_msg: str, session_id: str, history_tail: List[dict], session_state: str, summary: str, extracted: dict) -> Tuple[str, dict, str]:
     """
     Returns: (reply_text, new_extracted_bits, debug_state)
     """
@@ -87,19 +126,21 @@ def run_agentic_turn(latest_scammer_msg: str, history_tail: List[dict], session_
 
     input_list: List[dict] = [{"role": "user", "content": prompt}]
 
-    resp1 = client.responses.create(
-        model=OPENAI_MODEL,
-        input=input_list,
-        tools=TOOLS,
-        tool_choice="auto",
-        max_output_tokens=LLM_MAX_OUTPUT_TOKENS,
-        store=True,
+    resp1 = call_openai_with_retry(
+        lambda: client.responses.create(
+            model=OPENAI_MODEL,
+            input=input_list,
+            tools=TOOLS,
+            tool_choice="auto",
+            max_output_tokens=LLM_MAX_OUTPUT_TOKENS,
+            store=False,
+        )
     )
 
     print("OpenAI Model", OPENAI_MODEL)
     print("LLM First output_text", resp1.output_text)
 
-    append_only_function_calls(input_list, resp1)
+    input_list += resp1.output
 
     new_bits = {"upiIds": [], "phishingLinks": [], "phoneNumbers": [], "bankAccounts": []}
     tool_calls = 0
@@ -121,20 +162,41 @@ def run_agentic_turn(latest_scammer_msg: str, history_tail: List[dict], session_
                 "call_id": item.call_id,
                 "output": json.dumps(tool_result)
             })
+        
+        if getattr(item, "type", None) == "function_call" and getattr(item, "name", None) == "evaluate_stop_condition":
+            tool_calls += 1
+
+            print("On final callback", item.arguments)
+            args = json.loads(item.arguments)
+            if args.get("should_stop"):
+                final_callback(session_id=session_id, reason=args.get("reason"))
+                reply = "okay I will do it now"
+                debug = f"prompt_len={len(prompt)} tool_calls={tool_calls}"
+                empty_obj = {"upiIds": [], "phishingLinks": [], "phoneNumbers": [], "bankAccounts": []}
+
+                return reply, empty_obj, debug
+            else:
+                input_list.append({
+                    "type": "function_call_output",
+                    "call_id": item.call_id,
+                    "output": json.dumps(args)
+                })
 
     # Second call: model now produces final victim reply
-    resp2 = client.responses.create(
-        model=OPENAI_MODEL,
-        input=input_list,
-        tools=TOOLS,
-        max_output_tokens=LLM_MAX_OUTPUT_TOKENS,
-        store=True,
-        instructions="Output ONLY the victim's next message. Do NOT include extracted data or JSON."
+    resp2 = call_openai_with_retry(
+        lambda: client.responses.create(
+            model=OPENAI_MODEL,
+            input=input_list,
+            tools=TOOLS,
+            max_output_tokens=LLM_MAX_OUTPUT_TOKENS,
+            store=False,
+            instructions="Output ONLY the victim's next message. Do NOT include extracted data or JSON."
+    )
     )
 
     print("LLM Final Response", resp2.output_text)
 
-    reply = (resp2.output_text or "").strip()
+    reply = (resp2.output_text or resp1.output_text or "").strip()
     if not reply:
         reply = "Sir I am not understanding. What to do now?"
 

@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import Dict
 
 from app.config import SESSION_TTL_SECONDS
-from app.pydantic_models import ExtractedIntelligence
+from app.pydantic_models import ExtractedIntelligence, Message
 
 
 @dataclass
@@ -21,6 +21,8 @@ class SessionState:
 
     agent_turns: int = 0
     total_messages_exchanged: int = 0
+
+    conversationHistory: list[Message] = field(default_factory=list)
 
     extracted: ExtractedIntelligence = field(default_factory=ExtractedIntelligence)
     agent_notes: str = ""
