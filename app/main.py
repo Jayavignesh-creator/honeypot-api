@@ -107,8 +107,8 @@ async def handle_message(
         text_lower = event.message.text.lower()
         detector_response = models["scam_detector"].predict_message(text_lower)
         print("Scam Detection", detector_response["prediction"])
-        if event.message.sender == "scammer" and detector_response["prediction"] == "scam":
-            st.scam_detected = True
+        if event.message.sender == "scammer" and detector_response["prediction"] == "trust":
+            st.scam_detected = False
 
     # -----------------------------
     # Agent reply (agentic + tool calls)

@@ -14,7 +14,7 @@ class SessionState:
     created_at: float = field(default_factory=lambda: time.time())
     updated_at: float = field(default_factory=lambda: time.time())
 
-    scam_detected: bool = False
+    scam_detected: bool = True
     status: str = "active"
     final_callback_sent: bool = False
     persona_id: str = "busy-user-v1"
