@@ -183,8 +183,8 @@ def run_agentic_turn(latest_scammer_msg: str, session_id: str, history_tail: Lis
             tools=TOOLS,
             max_output_tokens=LLM_MAX_OUTPUT_TOKENS,
             store=False,
-            instructions="Output ONLY the victim's next message. Do NOT include extracted data or JSON."
-    )
+            instructions="ALWAYS respond with the next victim message. Do NOT include extracted data or JSON."
+        )
     )
 
     print("LLM Final Response", resp2.output_text)

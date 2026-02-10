@@ -4,14 +4,29 @@ from app.pydantic_models import ExtractedIntelligence
 
 _UPI = re.compile(r"\b[a-z0-9.\-_]{2,}@[a-z0-9]{2,}\b", re.I)
 _URL = re.compile(r"\bhttps?://[^\s]+|\bwww\.[^\s]+", re.I)
-_PHONE = re.compile(r"\b(?:\+?\d{1,3}[\s\-]?)?(?:\d[\s\-]?){9,12}\b")
+_PHONE = re.compile(
+    r"(?<!\w)(?:\+?\d{1,3}[\s\-]?)?(?:\d[\s\-]?){9,12}(?!\w)"
+)
 _ACCT = re.compile(r"\b\d{9,18}\b")  # loose on purpose
 
 def extract_entities(text: str) -> Dict[str, List[str]]:
+    phones = []
+    for match in _PHONE.finditer(text):
+        raw = match.group(0).strip()
+        digits = re.sub(r"\D", "", raw)
+
+        # Only accept realistic phone lengths
+        if 10 <= len(digits) <= 15:
+            phones.append(raw)
+
+    # remove duplicates while preserving order
+    seen = set()
+    phones = [p for p in phones if not (p in seen or seen.add(p))]
+
     return {
         "upiIds": _UPI.findall(text),
         "phishingLinks": _URL.findall(text),
-        "phoneNumbers": [p.strip() for p in _PHONE.findall(text)],
+        "phoneNumbers": phones,
         "bankAccounts": _ACCT.findall(text),
     }
 
