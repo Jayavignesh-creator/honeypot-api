@@ -101,7 +101,7 @@ async def handle_message(
     # Scam detection (stub for now)
     # -----------------------------
 
-    scam_gate = os.getenv("SCAM_GATE", "false").lower() == "true"
+    scam_gate = SCAM_GATE.lower() == "true"
     if not event.conversationHistory and scam_gate:
         text_lower = event.message.text.lower()
         detector_response = models["scam_detector"].predict_message(text_lower)
