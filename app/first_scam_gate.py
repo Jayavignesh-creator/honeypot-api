@@ -136,11 +136,11 @@ class FirstLayerScamDetector:
 # ======================================================
 # CLI test (optional)
 # ======================================================
-if __name__ == "__main__":
-    msg = "URGENT: Your SBI account has been compromised. Your account will be blocked in 2 hours. Share your account number and OTP immediately to verify your identity."
+# if __name__ == "__main__":
+#     msg = "URGENT: Your SBI account has been compromised. Your account will be blocked in 2 hours. Share your account number and OTP immediately to verify your identity."
 
-    detector = FirstLayerScamDetector()
-    if not detector.load_model("./models/bert_scam_detector.pth"):
-        raise SystemExit(2)
+#     detector = FirstLayerScamDetector()
+#     if not detector.load_model("./models/bert_scam_detector.pth"):
+#         raise SystemExit(2)
 
-    print(detector.predict_message(msg))
+#     print(detector.predict_message(msg))

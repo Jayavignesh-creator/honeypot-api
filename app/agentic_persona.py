@@ -6,7 +6,7 @@ import openai
 import json
 import time
 
-from app.config import OPENAI_MODEL, LLM_MAX_OUTPUT_TOKENS
+from app.config import OPENAI_MODEL, LLM_MAX_OUTPUT_TOKENS, SYSTEM_PROMPT
 from app.openai_tools import TOOLS
 from app.tools.extract_tool import extract_entities
 from app.tools.callback_tool import final_callback
@@ -60,15 +60,7 @@ def build_prompt(state: str, language: str, extracted: ExtractedIntelligence, hi
         + transcript
         + "\n\nINSTRUCTIONS:\n"
         + f"1) Respond in {language} in a confused tone.\n"
-        + "2) Respond with the VICTIM message (1–2 short sentences).\n"
-        + "3) Do not use any emojis or special characters.\n"
-        + "4) Even though you should not share any sensitive information, make them think like you would and stall so that you extract information.\n"
-        + "5) FOLLOW THIS STRICTLY: only call the tool extract_intelligence if the scammer message includes UPI IDs, bank accounts, phone numbers, or links.\n"
-        + "6) Allways provide a VICTIM response once any tool call is over pushing the scammer into giving you the other intelligence required.But DO NOT EVER REVEAL that you are stalling for information.\n"
-        + "7) Stall the conversation until you extract all the necessary information.\n"
-        + "8) FOLLOW THIS STRICTLY: call the tool evaluate_stop_condition if you cannot extract any more intelligence from the message"
-        + "9) FOLLOW THIS STRICTLY: call the tool evaluate_stop_condition if the scammer sends the same message repeatedly, you can check that by looking into the recent conversation given above.\n"
-        + "10) FOLLOW THIS STRICTLY: do not call the tool evaluate_stop_condition for the first 5 messages, you can check the number of messages by looking into Number of replies so far given above.\n"
+        + SYSTEM_PROMPT
     )
 
 
@@ -124,6 +116,8 @@ def run_agentic_turn(latest_scammer_msg: str, session_id: str, history_tail: Lis
 
     prompt = build_prompt(session_state, language, extracted, history_tail)
 
+    print("Prompt : ", prompt)
+
     input_list: List[dict] = [{"role": "user", "content": prompt}]
 
     resp1 = call_openai_with_retry(
@@ -137,7 +131,6 @@ def run_agentic_turn(latest_scammer_msg: str, session_id: str, history_tail: Lis
         )
     )
 
-    print("OpenAI Model", OPENAI_MODEL)
     print("LLM First output_text", resp1.output_text)
 
     input_list += resp1.output

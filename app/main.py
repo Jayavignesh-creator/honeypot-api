@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from app.session_store import store
 from app.pydantic_models import IncomingEvent, AgentResponse
 from app.auth import api_key_auth
-from app.config import MAX_REPLY_CHARS, MODEL_PATH
+from app.config import MAX_REPLY_CHARS, MODEL_PATH, SCAM_GATE
 from app.first_scam_gate import FirstLayerScamDetector
 from app.agentic_persona import run_agentic_turn
 from app.tools.extract_tool import merge_unique
@@ -45,7 +45,6 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("Failed to load scam detection model")
 
     models["scam_detector"] = detector
-    print("Model loaded")
     yield
 
 app = FastAPI(title="Agentic Honeypot API", version="1.0.0", lifespan=lifespan)
@@ -90,20 +89,20 @@ async def handle_message(
     background_tasks: BackgroundTasks,
     _: None = Depends(api_key_auth),
 ):
-    print("Incoming Event", event)
     st = store.get_or_create(event.sessionId)
 
     # If session already closed, reply minimally
     if st.status == "closed":
         return AgentResponse(status="success", reply="Okay, thanks.")
 
-    print("Conversation History", event.conversationHistory)
     st.language = event.metadata.language
 
     # -----------------------------
     # Scam detection (stub for now)
     # -----------------------------
-    if not event.conversationHistory:
+
+    scam_gate = os.getenv("SCAM_GATE", "false").lower() == "true"
+    if not event.conversationHistory and scam_gate:
         text_lower = event.message.text.lower()
         detector_response = models["scam_detector"].predict_message(text_lower)
         print("Scam Detection", detector_response["prediction"])
