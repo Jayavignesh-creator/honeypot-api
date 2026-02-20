@@ -145,6 +145,11 @@ async def handle_message(
         if st.extracted.upiIds or st.extracted.bankAccounts:
             st.state = "STALLING"
 
+        new_bits = extract_intelligence(event.message.text)
+
+        # Merge extracted intel into session
+        st.extracted = merge_unique(st.extracted, new_bits)
+
         # Run one agentic turn: model calls tools -> we execute -> get extracted intel + reply
         reply, dbg = run_agentic_turn(
             latest_scammer_msg=event.message.text,
@@ -155,11 +160,6 @@ async def handle_message(
             extracted=st.extracted,
             background_tasks=background_tasks
         )
-        
-        new_bits = extract_intelligence(event.message.text)
-
-        # Merge extracted intel into session
-        st.extracted = merge_unique(st.extracted, new_bits)
 
         st.agent_turns += 1
         st.agent_notes = dbg

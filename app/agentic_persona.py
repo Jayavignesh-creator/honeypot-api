@@ -130,8 +130,6 @@ def run_agentic_turn(latest_scammer_msg: str, session_id: str, history_tail: Lis
         )
     )
 
-    print("LLM First output_text", resp1.output_text)
-
     input_list += resp1.output
 
     tool_calls = 0
@@ -168,8 +166,6 @@ def run_agentic_turn(latest_scammer_msg: str, session_id: str, history_tail: Lis
             instructions="ALWAYS respond with the next victim message. Do NOT include extracted data or JSON."
         )
     )
-
-    print("LLM Final Response", resp2.output_text)
 
     reply = (resp2.output_text or resp1.output_text or "").strip()
     if not reply:

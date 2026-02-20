@@ -10,18 +10,18 @@ def final_callback(session_id: str, reason: str, background_tasks: BackgroundTas
     st = store.get_or_create(session_id)
     total_messages = len(st.conversationHistory) + 1  # best-effort
 
-    print("Conversation history from callback tool", st.conversationHistory)
     session_created_time = st.created_at
     engagement_duration = int(time.time() - session_created_time)
 
-    print("Total engagement time : ",engagement_duration)
-
     suspicious_keywords = extract_suspicious_keywords(json.dumps(st.conversationHistory))
     st.extracted.suspiciousKeywords = suspicious_keywords
-    scammer_behaviour = summarize_behaviour(json.dumps(st.conversationHistory)) + "\n\n" + reason
+    scammer_behaviour = summarize_behaviour(json.dumps(st.conversationHistory))
 
+    print("Reason for final callback", reason)
+    print("Total engagement time : ",engagement_duration)
     print("Extracted keywords", suspicious_keywords)
     print("Scammer Behaviour", scammer_behaviour)
+    print("Final extracted intelligence", st.extracted)
 
     payload = FinalCallbackPayload(
         sessionId=session_id,
