@@ -8,7 +8,6 @@ import time
 
 from app.config import OPENAI_MODEL, LLM_MAX_OUTPUT_TOKENS, SYSTEM_PROMPT
 from app.openai_tools import TOOLS
-from app.tools.extract_tool import extract_entities
 from app.tools.summarize import extract_entities_agent
 from app.tools.callback_tool import final_callback
 from app.pydantic_models import ExtractedIntelligence

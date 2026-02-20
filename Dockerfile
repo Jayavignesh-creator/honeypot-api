@@ -15,7 +15,7 @@ ENV PATH="/root/.local/bin:$PATH"
 
 COPY requirements.txt .
 RUN uv pip install --system --no-cache-dir -r requirements.txt
-COPY app ./app
+COPY src ./app
 
 EXPOSE 8000
 

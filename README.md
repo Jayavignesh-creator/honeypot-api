@@ -14,7 +14,7 @@ Agentic FastAPI service that simulates a victim in scam conversations, extracts 
 ## Repository Structure
 
 - `app/main.py`: FastAPI app, startup model load, request handling, callback trigger logic.
-- `app/agentic_persona.py`: LLM orchestration and tool-call handling.
+- `app/honeypot_agent.py`: LLM orchestration and tool-call handling.
 - `app/first_scam_gate.py`: BERT-based scam detector.
 - `app/tools/extract_tool.py`: Entity extraction + merge logic.
 - `app/tools/callback_tool.py`: Final callback payload assembly.

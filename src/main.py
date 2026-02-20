@@ -9,7 +9,7 @@ from app.pydantic_models import IncomingEvent, AgentResponse
 from app.auth import api_key_auth
 from app.config import MAX_REPLY_CHARS, MODEL_PATH, SCAM_GATE
 from app.first_scam_gate import FirstLayerScamDetector
-from app.agentic_persona import run_agentic_turn
+from app.honeypot_agent import run_agentic_turn
 from app.tools.extract_tool import merge_unique
 from app.tools.callback_tool import final_callback
 
