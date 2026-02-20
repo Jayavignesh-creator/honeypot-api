@@ -19,5 +19,8 @@ SYSTEM_PROMPT = os.getenv("SYSTEM_PROMPT", """2) Respond with the VICTIM message
 SCAM_GATE = os.getenv("SCAM_GATE", "false")
 
 # OpenAI config
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.2")
 LLM_MAX_OUTPUT_TOKENS = int(os.getenv("LLM_MAX_OUTPUT_TOKENS", "120"))
+
+REDIS_HOST = os.getenv("REDIS_HOST", "honeypot-redis")
+REDIS_PORT = os.getenv("REDIS_PORT", 6379)
