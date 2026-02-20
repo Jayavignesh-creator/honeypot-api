@@ -116,8 +116,7 @@ def run_agentic_turn(latest_scammer_msg: str, session_id: str, history_tail: Lis
 
     prompt = build_prompt(session_state, language, extracted, history_tail)
 
-    print("Prompt : ", prompt)
-
+    print("Extracted intel so far : ", extracted)
     input_list: List[dict] = [{"role": "user", "content": prompt}]
 
     resp1 = call_openai_with_retry(
