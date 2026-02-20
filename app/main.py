@@ -12,6 +12,7 @@ from app.first_scam_gate import FirstLayerScamDetector
 from app.agentic_persona import run_agentic_turn
 from app.tools.extract_tool import merge_unique
 from app.tools.callback_tool import final_callback
+from app.tools.summarize import extract_intelligence
 
 import time
 from fastapi import FastAPI, Request
@@ -145,7 +146,7 @@ async def handle_message(
             st.state = "STALLING"
 
         # Run one agentic turn: model calls tools -> we execute -> get extracted intel + reply
-        reply, new_bits, dbg = run_agentic_turn(
+        reply, dbg = run_agentic_turn(
             latest_scammer_msg=event.message.text,
             session_id=st.session_id,
             history_tail=history_tail,
@@ -154,6 +155,8 @@ async def handle_message(
             extracted=st.extracted,
             background_tasks=background_tasks
         )
+        
+        new_bits = extract_intelligence(event.message.text)
 
         # Merge extracted intel into session
         st.extracted = merge_unique(st.extracted, new_bits)

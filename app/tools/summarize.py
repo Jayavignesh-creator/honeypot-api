@@ -42,6 +42,51 @@ def extract_suspicious_keywords(text: str) -> list[str]:
         return []
     return data.get("keywords", [])
 
+def extract_intelligence(text: str) -> dict:
+    if not text or not text.strip():
+        return {"upiIds": [], "phishingLinks": [], "phoneNumbers": [], "bankAccounts": []}
+    
+    response = client.responses.create(
+        model="gpt-5.2",
+        input=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a professional information extractor. "
+                    "Your task is to extract UPI IDs, phone numbers, bank account numbers, and phishing URLs from the given text.\n\n"
+                    "RULES:\n"
+                    "- Output MUST be valid JSON\n"
+                    "- Output MUST contain ONLY the specified object structure\n"
+                    "- No explanations, no extra text\n"
+                    "- Always return all four fields, even if empty\n"
+                    "- If no suspicious data is found, return empty arrays for all fields\n\n"
+                    "Output format:\n"
+                    "{\n"
+                    "  \"upiIds\": [],\n"
+                    "  \"phishingLinks\": [],\n"
+                    "  \"phoneNumbers\": [],\n"
+                    "  \"bankAccounts\": []\n"
+                    "}"
+                )
+            },
+            {
+                "role": "user",
+                "content": f"Extract information from the text:\n\n{text}"
+            }
+        ],
+        max_output_tokens=500,
+        temperature=0.0  # important for consistency
+    )
+
+    try:
+        data = json.loads(response.output_text)
+    except (json.JSONDecodeError, TypeError):
+        # Fallback: return an empty list if the response is not valid JSON
+        print("Extracted Keywords parsing failed; returning empty list.")
+        return {"upiIds": [], "phishingLinks": [], "phoneNumbers": [], "bankAccounts": []}
+    return data
+    
+
 def summarize_behaviour(text: str) -> str:
     """
     Summarize the given text using OpenAI GPT-5.2.
