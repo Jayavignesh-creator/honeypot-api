@@ -23,6 +23,7 @@ def final_callback(session_id: str, reason: str, extracted_intel: dict, backgrou
     print("Total engagement time : ",engagement_duration)
     print("Extracted keywords", suspicious_keywords)
     print("Scammer Behaviour", scammer_behaviour)
+    print("Extracted intelligence", extracted_intel)
     print("Final extracted intelligence", st.extracted)
 
     payload = FinalCallbackPayload(
