@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 import redis
 
 from app.config import SESSION_TTL_SECONDS, REDIS_HOST, REDIS_PORT
-from app.pydantic_models import ExtractedIntelligence, Message
+from app.pydantic_models import ExtractedIntelligence
 
 
 @dataclass
@@ -23,9 +23,7 @@ class SessionState:
 
     agent_turns: int = 0
     total_messages_exchanged: int = 0
-
-    conversationHistory: list[Message] = field(default_factory=list)
-
+    conversationHistory: list[dict] = field(default_factory=list)
     extracted: ExtractedIntelligence = field(default_factory=ExtractedIntelligence)
     agent_notes: str = ""
 
@@ -34,69 +32,33 @@ class SessionState:
     language: str = "English"
 
 
-def _dump_any(obj):
-    # already json-serializable
-    if obj is None or isinstance(obj, (str, int, float, bool, list, dict)):
+def _dump_extracted(obj):
+    if obj is None:
+        return {}
+    if isinstance(obj, dict):
         return obj
-
-    # Pydantic v2
     if hasattr(obj, "model_dump"):
         return obj.model_dump()
-
-    # Pydantic v1
     if hasattr(obj, "dict"):
         return obj.dict()
-
-    # Dataclasses (rare here, but safe)
-    if hasattr(obj, "__dataclass_fields__"):
-        from dataclasses import asdict
-        return asdict(obj)
-
-    raise TypeError(f"Cannot dump object of type {type(obj)}")
-
-
-def _load_message(x):
-    # If it's already a Message, keep it
-    if isinstance(x, Message):
-        return x
-
-    # If it's a dict, convert to Message
-    if isinstance(x, dict):
-        if hasattr(Message, "model_validate"):   # pydantic v2
-            return Message.model_validate(x)
-        return Message.parse_obj(x)              # pydantic v1
-
-    # Otherwise, return as-is (or raise). I'd rather raise to catch bad data early.
-    raise TypeError(f"conversationHistory item must be dict/Message, got {type(x)}")
+    raise TypeError(f"Cannot dump extracted of type {type(obj)}")
 
 
 def _load_extracted(x):
     if isinstance(x, ExtractedIntelligence):
         return x
-
     if isinstance(x, dict):
-        if hasattr(ExtractedIntelligence, "model_validate"):  # pydantic v2
+        if hasattr(ExtractedIntelligence, "model_validate"):
             return ExtractedIntelligence.model_validate(x)
-        return ExtractedIntelligence.parse_obj(x)             # pydantic v1
-
-    # If somehow it's missing, default it
+        return ExtractedIntelligence.parse_obj(x)
     if x is None:
         return ExtractedIntelligence()
-
     raise TypeError(f"extracted must be dict/ExtractedIntelligence, got {type(x)}")
 
 
 class RedisSessionStore:
-    """
-    Redis-backed session store with TTL.
-    Same interface as InMemorySessionStore: get_or_create() and save().
-
-    Works across multiple replicas (pods) because Redis is shared.
-    """
-
     def __init__(self, prefix: str = "session:"):
         self.prefix = prefix
-
         self._r = redis.Redis(
             host=REDIS_HOST,
             port=int(REDIS_PORT),
@@ -104,7 +66,6 @@ class RedisSessionStore:
             socket_connect_timeout=3,
             socket_timeout=3,
         )
-
         try:
             self._r.ping()
         except Exception as e:
@@ -114,6 +75,18 @@ class RedisSessionStore:
         return f"{self.prefix}{session_id}"
 
     def _serialize(self, st: SessionState) -> str:
+        history = []
+        for m in st.conversationHistory:
+            if isinstance(m, dict):
+                history.append(m)
+            else:
+                if hasattr(m, "model_dump"):
+                    history.append(m.model_dump())
+                elif hasattr(m, "dict"):
+                    history.append(m.dict())
+                else:
+                    raise TypeError(f"conversationHistory must contain dicts, got {type(m)}")
+
         data = {
             "session_id": st.session_id,
             "created_at": st.created_at,
@@ -124,8 +97,8 @@ class RedisSessionStore:
             "persona_id": st.persona_id,
             "agent_turns": st.agent_turns,
             "total_messages_exchanged": st.total_messages_exchanged,
-            "conversationHistory": [_dump_any(m) for m in st.conversationHistory],
-            "extracted": _dump_any(st.extracted),
+            "conversationHistory": history,
+            "extracted": _dump_extracted(st.extracted),
             "agent_notes": st.agent_notes,
             "state": st.state,
             "summary": st.summary,
@@ -135,7 +108,12 @@ class RedisSessionStore:
 
     def _deserialize(self, raw: str) -> SessionState:
         d = json.loads(raw)
-        d["conversationHistory"] = [_load_message(x) for x in d.get("conversationHistory", [])]
+
+        hist = d.get("conversationHistory", [])
+        if not isinstance(hist, list):
+            hist = []
+        d["conversationHistory"] = [x for x in hist if isinstance(x, dict)]
+
         d["extracted"] = _load_extracted(d.get("extracted", {}))
 
         return SessionState(**d)
@@ -153,9 +131,7 @@ class RedisSessionStore:
     def save(self, st: SessionState) -> None:
         st.updated_at = time.time()
         key = self._key(st.session_id)
-        raw = self._serialize(st)
-
-        self._r.setex(key, SESSION_TTL_SECONDS, raw)
+        self._r.setex(key, SESSION_TTL_SECONDS, self._serialize(st))
 
 
 store = RedisSessionStore()
