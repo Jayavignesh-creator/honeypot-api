@@ -135,26 +135,11 @@ def run_agentic_turn(latest_scammer_msg: str, session_id: str, history_tail: Lis
 
     input_list += resp1.output
 
-    new_bits = {"upiIds": [], "phishingLinks": [], "phoneNumbers": [], "bankAccounts": []}
     tool_calls = 0
 
     # Execute any function calls and append outputs
     for item in resp1.output:
         print("Item type", getattr(item, "type", None))
-        if getattr(item, "type", None) == "function_call" and getattr(item, "name", None) == "extract_intelligence":
-            tool_calls += 1
-
-            tool_result = extract_entities(latest_scammer_msg)
-            print("Tool call result:", tool_result)
-
-            for k in new_bits.keys():
-                new_bits[k].extend(tool_result.get(k, []))
-
-            input_list.append({
-                "type": "function_call_output",
-                "call_id": item.call_id,
-                "output": json.dumps(tool_result)
-            })
         
         if getattr(item, "type", None) == "function_call" and getattr(item, "name", None) == "evaluate_stop_condition":
             tool_calls += 1
@@ -165,9 +150,7 @@ def run_agentic_turn(latest_scammer_msg: str, session_id: str, history_tail: Lis
                 final_callback(session_id=session_id, reason=args.get("reason"), background_tasks=background_tasks)
                 reply = "okay I will do it now"
                 debug = f"prompt_len={len(prompt)} tool_calls={tool_calls}"
-                empty_obj = {"upiIds": [], "phishingLinks": [], "phoneNumbers": [], "bankAccounts": []}
-
-                return reply, empty_obj, debug
+                return reply, debug
             else:
                 input_list.append({
                     "type": "function_call_output",
@@ -194,4 +177,4 @@ def run_agentic_turn(latest_scammer_msg: str, session_id: str, history_tail: Lis
         reply = "Sir I am not understanding. What to do now?"
 
     debug = f"prompt_len={len(prompt)} tool_calls={tool_calls}"
-    return reply, new_bits, debug
+    return reply, debug
