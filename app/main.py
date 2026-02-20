@@ -174,10 +174,10 @@ async def handle_message(
     reply = reply[:MAX_REPLY_CHARS]
 
     if not st.scam_detected:
-        final_callback(st.session_id, "Scam not detected", background_tasks=background_tasks)
+        final_callback(st.session_id, "Scam not detected", st.extracted, background_tasks=background_tasks)
 
     elif st.scam_detected and st.agent_turns > 10:
-        final_callback(st.session_id, "Number of conversations exceeded set max limit", background_tasks=background_tasks)
+        final_callback(st.session_id, "Number of conversations exceeded set max limit", st.extracted, background_tasks=background_tasks)
 
     store.save(st)
     return AgentResponse(status="success", reply=reply)

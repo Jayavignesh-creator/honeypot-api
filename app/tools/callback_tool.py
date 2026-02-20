@@ -6,10 +6,11 @@ from app.pydantic_models import FinalCallbackPayload
 import json
 import time
 
-def final_callback(session_id: str, reason: str, background_tasks: BackgroundTasks):
+def final_callback(session_id: str, reason: str, extracted_intel: dict, background_tasks: BackgroundTasks):
     st = store.get_or_create(session_id)
     total_messages = len(st.conversationHistory) + 1  # best-effort
 
+    st.extracted = extracted_intel
     session_created_time = st.created_at
     engagement_duration = int(time.time() - session_created_time)
 
@@ -17,6 +18,7 @@ def final_callback(session_id: str, reason: str, background_tasks: BackgroundTas
     st.extracted.suspiciousKeywords = suspicious_keywords
     scammer_behaviour = summarize_behaviour(json.dumps(st.conversationHistory))
 
+    print("Made final callback")
     print("Reason for final callback", reason)
     print("Total engagement time : ",engagement_duration)
     print("Extracted keywords", suspicious_keywords)

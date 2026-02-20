@@ -140,11 +140,9 @@ def run_agentic_turn(latest_scammer_msg: str, session_id: str, history_tail: Lis
         
         if getattr(item, "type", None) == "function_call" and getattr(item, "name", None) == "evaluate_stop_condition":
             tool_calls += 1
-
-            print("On final callback", item.arguments)
             args = json.loads(item.arguments)
             if args.get("should_stop"):
-                final_callback(session_id=session_id, reason=args.get("reason"), background_tasks=background_tasks)
+                final_callback(session_id=session_id, reason=args.get("reason"), extracted_intel=extracted, background_tasks=background_tasks)
                 reply = "okay I will do it now"
                 debug = f"prompt_len={len(prompt)} tool_calls={tool_calls}"
                 return reply, debug
