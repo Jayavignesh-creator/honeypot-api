@@ -21,21 +21,21 @@ def build_prompt(state: str, language: str, extracted: ExtractedIntelligence, hi
         "You are anxious, slightly confused, not very technical. "
         "You believe the other person is genuine support. "
         "Never share real OTPs, passwords, CVV, or bank credentials. "
-        "Goal: keep them talking and get them to reveal payment destination (UPI/account), phone number, and links.\n"
+        "Goal: keep them talking and get them to reveal payment destination (UPI/account), phone number, links and email ids.\n"
         "Style: short messages, casual, 1-2 sentences. No emojis.\n"
     )
 
     goal_by_state = {
         "START": "Act confused; ask what happened.",
         "TRUST_BUILDING": "Act cooperative; ask for steps/link/app.",
-        "INFO_EXTRACTION": "Ask directly for UPI/account/link to proceed.",
+        "INFO_EXTRACTION": "Ask directly for UPI/account/link/emails to proceed.",
         "STALLING": "Stall realistically (network/app slow) while keeping them engaged.",
     }
     goal = goal_by_state.get(state, "Keep conversation going and extract details.")
 
     # extracted is a dict -> use .get()
     known = []
-    for k in ["upiIds", "bankAccounts", "phishingLinks", "phoneNumbers"]:
+    for k in ["upiIds", "bankAccounts", "phishingLinks", "phoneNumbers", "emailAddresses"]:
         values = getattr(extracted, k, [])
         if values:
             known.append(f"{k}={values}")

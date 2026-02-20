@@ -44,7 +44,7 @@ def extract_suspicious_keywords(text: str) -> list[str]:
 
 def extract_intelligence(text: str) -> dict:
     if not text or not text.strip():
-        return {"upiIds": [], "phishingLinks": [], "phoneNumbers": [], "bankAccounts": []}
+        return {"upiIds": [], "phishingLinks": [], "phoneNumbers": [], "bankAccounts": [], "emailAddresses": []}
     
     response = client.responses.create(
         model="gpt-5.2",
@@ -53,7 +53,7 @@ def extract_intelligence(text: str) -> dict:
                 "role": "system",
                 "content": (
                     "You are a professional information extractor. "
-                    "Your task is to extract UPI IDs, phone numbers, bank account numbers, and phishing URLs from the given text.\n\n"
+                    "Your task is to extract UPI IDs, phone numbers, bank account numbers, phishing URLs and email ids from the given text.\n\n"
                     "RULES:\n"
                     "- Output MUST be valid JSON\n"
                     "- Output MUST contain ONLY the specified object structure\n"
@@ -65,7 +65,8 @@ def extract_intelligence(text: str) -> dict:
                     "  \"upiIds\": [],\n"
                     "  \"phishingLinks\": [],\n"
                     "  \"phoneNumbers\": [],\n"
-                    "  \"bankAccounts\": []\n"
+                    "  \"bankAccounts\": [],\n"
+                    "  \"emailAddresses\": []\n"
                     "}"
                 )
             },
@@ -83,7 +84,7 @@ def extract_intelligence(text: str) -> dict:
     except (json.JSONDecodeError, TypeError):
         # Fallback: return an empty list if the response is not valid JSON
         print("Extracted Keywords parsing failed; returning empty list.")
-        return {"upiIds": [], "phishingLinks": [], "phoneNumbers": [], "bankAccounts": []}
+        return {"upiIds": [], "phishingLinks": [], "phoneNumbers": [], "bankAccounts": [], "emailAddresses": []}
     return data
     
 
