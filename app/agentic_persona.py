@@ -9,6 +9,7 @@ import time
 from app.config import OPENAI_MODEL, LLM_MAX_OUTPUT_TOKENS, SYSTEM_PROMPT
 from app.openai_tools import TOOLS
 from app.tools.extract_tool import extract_entities
+from app.tools.summarize import extract_entities_agent
 from app.tools.callback_tool import final_callback
 from app.pydantic_models import ExtractedIntelligence
 import random
@@ -35,7 +36,7 @@ def build_prompt(state: str, language: str, extracted: ExtractedIntelligence, hi
 
     # extracted is a dict -> use .get()
     known = []
-    for k in ["upiIds", "bankAccounts", "phishingLinks", "phoneNumbers"]:
+    for k in ["upiIds", "bankAccounts", "phishingLinks", "phoneNumbers", "emailAddresses"]:
         values = getattr(extracted, k, [])
         if values:
             known.append(f"{k}={values}")
@@ -130,41 +131,29 @@ def run_agentic_turn(latest_scammer_msg: str, session_id: str, history_tail: Lis
         )
     )
 
-    print("LLM First output_text", resp1.output_text)
-
     input_list += resp1.output
 
-    new_bits = {"upiIds": [], "phishingLinks": [], "phoneNumbers": [], "bankAccounts": []}
+    new_bits = {"upiIds": [], "phishingLinks": [], "phoneNumbers": [], "bankAccounts": [], "emailAddresses": []}
+    # tool_result = extract_entities(latest_scammer_msg)
+    tool_result = extract_entities_agent(latest_scammer_msg)
+
+    for k in new_bits.keys():
+        new_bits[k].extend(tool_result.get(k, []))
+
     tool_calls = 0
 
     # Execute any function calls and append outputs
     for item in resp1.output:
         print("Item type", getattr(item, "type", None))
-        if getattr(item, "type", None) == "function_call" and getattr(item, "name", None) == "extract_intelligence":
-            tool_calls += 1
-
-            tool_result = extract_entities(latest_scammer_msg)
-            print("Tool call result:", tool_result)
-
-            for k in new_bits.keys():
-                new_bits[k].extend(tool_result.get(k, []))
-
-            input_list.append({
-                "type": "function_call_output",
-                "call_id": item.call_id,
-                "output": json.dumps(tool_result)
-            })
-        
         if getattr(item, "type", None) == "function_call" and getattr(item, "name", None) == "evaluate_stop_condition":
             tool_calls += 1
 
-            print("On final callback", item.arguments)
             args = json.loads(item.arguments)
             if args.get("should_stop"):
                 final_callback(session_id=session_id, reason=args.get("reason"), background_tasks=background_tasks)
                 reply = "okay I will do it now"
                 debug = f"prompt_len={len(prompt)} tool_calls={tool_calls}"
-                empty_obj = {"upiIds": [], "phishingLinks": [], "phoneNumbers": [], "bankAccounts": []}
+                empty_obj = {"upiIds": [], "phishingLinks": [], "phoneNumbers": [], "bankAccounts": [], "emailAddresses": []}
 
                 return reply, empty_obj, debug
             else:
@@ -185,8 +174,6 @@ def run_agentic_turn(latest_scammer_msg: str, session_id: str, history_tail: Lis
             instructions="ALWAYS respond with the next victim message. Do NOT include extracted data or JSON."
         )
     )
-
-    print("LLM Final Response", resp2.output_text)
 
     reply = (resp2.output_text or resp1.output_text or "").strip()
     if not reply:
