@@ -10,6 +10,7 @@ def final_callback(session_id: str, reason: str, extracted_intel: dict, backgrou
     st = store.get_or_create(session_id)
     total_messages = len(st.conversationHistory) + 1  # best-effort
 
+    print("Final extracted intelligence", st.extracted)
     st.extracted = extracted_intel
     session_created_time = st.created_at
     engagement_duration = int(time.time() - session_created_time)
@@ -24,7 +25,6 @@ def final_callback(session_id: str, reason: str, extracted_intel: dict, backgrou
     print("Extracted keywords", suspicious_keywords)
     print("Scammer Behaviour", scammer_behaviour)
     print("Extracted intelligence", extracted_intel)
-    print("Final extracted intelligence", st.extracted)
 
     payload = FinalCallbackPayload(
         sessionId=session_id,
